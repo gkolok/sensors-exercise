@@ -4,6 +4,7 @@ import cats.effect.{ExitCode, IO, IOApp}
 import com.epam.sensorstats._
 import _root_.fs2.io.file.{Files, Path}
 import _root_.fs2.{Pipe, Stream, text}
+import com.epam.sensorstats.Util.printStatistics
 
 import java.nio.file.Paths
 import java.nio.file.{Files => JFiles}
@@ -20,13 +21,9 @@ object Fs2SensorStats extends IOApp {
         case Array(sensorId, value) => ValidMeasurement(SensorId(sensorId), value.toInt)
       }
 
-  val statisticsTupleToString = (sensorId: SensorId, sensorStatistics: SensorStatistics) =>
-    s"$sensorId,${sensorStatistics.print}"
-
   val printResult: ((Int, GroupStatistics)) => IO[Unit] = {
     case (numberOfFiles, GroupStatistics(numberOfMeasurements, numberOfFailedMeasurements, statistics)) =>
-      IO {
-        println(
+      IO.println(
           s"""
              |Num of processed files: $numberOfFiles
              |Num of processed measurements: $numberOfMeasurements
@@ -37,7 +34,6 @@ object Fs2SensorStats extends IOApp {
              |sensor-id,min,avg,max
              |${printStatistics(statistics)}
              |""".stripMargin)
-      }
   }
 
   val csvBytesToGroupStatistics: Pipe[IO, Byte, GroupStatistics] = stream => stream
@@ -59,10 +55,9 @@ object Fs2SensorStats extends IOApp {
     .evalMap(printResult)
 
   def printErrorMessage[R](message: String): Either[IO[ExitCode], R] =
-    Left(IO {
-      println(message)
-      ExitCode.Error
-    })
+    Left(
+      IO.println(message).map(_ => ExitCode.Error)
+    )
 
   def sensorDataPathsInFolder(folder: String): Either[IO[ExitCode], Stream[IO, Path]] =
     if (JFiles.exists(Paths.get(folder))) {
@@ -75,26 +70,13 @@ object Fs2SensorStats extends IOApp {
     .map(sensorDataPathsInFolder)
     .getOrElse(printErrorMessage("Folder of sensor data should be given as program argument"))
 
-  def statisticsComparator(statisticsTuple1: (SensorId, SensorStatistics), statisticsTuple2: (SensorId, SensorStatistics)) =
-    (statisticsTuple1._2, statisticsTuple2._2) match {
-      case (NanStatistics, NanStatistics) => statisticsTuple1._1.sensorId < statisticsTuple2._1.sensorId
-      case (NanStatistics, _) => false
-      case (_, NanStatistics) => true
-      case (s1: ValidSensorStatistics, s2: ValidSensorStatistics) => s1.average > s2.average
-    }
+  def program(folderOption: Option[String]) = input(folderOption) match {
+    case Left(errorPrintout) => errorPrintout
+    case Right(sensorDataPathStream) => sensorDataPathStream
+      .through(mainProcessing)
+      .compile
+      .drain.map(_ => ExitCode.Success)
+  }
 
-  def printStatistics(sensorStatistics: Map[SensorId, SensorStatistics]): String = sensorStatistics
-    .toList
-    .sortWith(statisticsComparator)
-    .map(statisticsTupleToString.tupled)
-    .mkString("\n")
-
-  def run(args: List[String]): IO[ExitCode] =
-    input(args.headOption) match {
-      case Left(errorPrintout) => errorPrintout
-      case Right(sensorDataPathStream) => sensorDataPathStream
-        .through(mainProcessing)
-        .compile
-        .drain.map(_ => ExitCode.Success)
-    }
+  def run(args: List[String]): IO[ExitCode] = program(args.headOption)
 }

@@ -9,11 +9,7 @@ object GroupStatistics {
 
     override def empty: GroupStatistics = GroupStatistics()
 
-    override def combine(x: GroupStatistics, y: GroupStatistics): GroupStatistics =
-      GroupStatistics(
-        numberOfMeasurements = x.numberOfMeasurements + y.numberOfMeasurements,
-        numberOfFailedMeasurements = x.numberOfFailedMeasurements + y.numberOfFailedMeasurements,
-        statistics = Monoid[Map[SensorId, SensorStatistics]].combine(x.statistics, y.statistics))
+    override def combine(x: GroupStatistics, y: GroupStatistics): GroupStatistics = GroupStatistics.combine(x, y)
   }
 
   def fromMeasurement(measurement: Measurement): GroupStatistics =
@@ -23,4 +19,9 @@ object GroupStatistics {
       statistics = Map(measurement.sensorId -> SensorStatistics.fromMeasurement(measurement))
     )
 
+  def combine(x: GroupStatistics, y: GroupStatistics): GroupStatistics =
+    GroupStatistics(
+      numberOfMeasurements = x.numberOfMeasurements + y.numberOfMeasurements,
+      numberOfFailedMeasurements = x.numberOfFailedMeasurements + y.numberOfFailedMeasurements,
+      statistics = Monoid[Map[SensorId, SensorStatistics]].combine(x.statistics, y.statistics))
 }
