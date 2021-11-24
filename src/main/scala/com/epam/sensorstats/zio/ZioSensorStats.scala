@@ -12,13 +12,13 @@ import java.nio.file.{Files, Paths}
 
 object ZioSensorStats extends App {
 
-  def csvBytesToMeasurements[R, E](stream: ZStream[R, E, Byte]): ZStream[R, E, Measurement] = stream
+  private def csvBytesToMeasurements[R, E](stream: ZStream[R, E, Byte]): ZStream[R, E, Measurement] = stream
     .transduce(ZTransducer.utf8Decode)
     .transduce(ZTransducer.splitLines)
     .drop(1) // we do not interested in header line
     .map(parseCsvLine)
 
-  def program(args: List[String]) =
+  private def program(args: List[String]) =
     ZStream(args)
       .mapM(argumentCheck)
       .flatMap(folder => ZStream.fromJavaStream(Files.walk(Paths.get(folder))))
@@ -35,14 +35,14 @@ object ZioSensorStats extends App {
         case e: String => putStrLn(e)
       }
 
-  def argumentCheck(args: List[String]) =
+  private def argumentCheck(args: List[String]) =
     for {
       _ <- ZIO.when(args.isEmpty)(ZIO.fail("Folder of sensor data should be given as program argument"))
       _ <- ZIO.when(Files.notExists(Paths.get(args.head)))(ZIO.fail(s"Folder: ${args.head} does not exists"))
     } yield args.head
 
-  override def run(args: List[String]) = {
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
     program(args).exitCode
-  }
+  
 
 }
