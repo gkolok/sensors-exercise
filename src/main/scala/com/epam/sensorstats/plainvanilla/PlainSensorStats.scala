@@ -1,10 +1,11 @@
 package com.epam.sensorstats.plainvanilla
 
 import cats.Monoid
-import com.epam.sensorstats.Util.printStatistics
+import com.epam.sensorstats.Util.{parseCsvLine, printStatistics, resultToString}
 import com.epam.sensorstats.{FailedMeasurement, GroupStatistics, Measurement, SensorId, ValidMeasurement}
 
 import java.nio.file.{Files, Path, Paths}
+import scala.io.BufferedSource
 import scala.jdk.CollectionConverters._
 import scala.util.{Failure, Success, Try, Using}
 
@@ -32,41 +33,23 @@ object PlainSensorStats {
     .getOrElse(Left("Folder of sensor data should be given as program argument"))
 
   def mainProcessing(sensorDataPaths: Iterator[Path]): String =
-    printResult(
-      sensorDataPaths
-        .map { path => csvPathToGroupStatistics(path).map((1, _)) }
-        .reduce(Monoid[Try[(Int, GroupStatistics)]].combine)
-    )
+    sensorDataPaths
+      .filter(path => path.getFileName.toString.endsWith(".csv"))
+      .map { path => csvPathToGroupStatistics(path).map((1, _)) }
+      .reduce(Monoid[Try[(Int, GroupStatistics)]].combine)
+      .fold(exception => s"Processing failure: ${exception}", resultToString)
 
-  val printResult: Try[(Int, GroupStatistics)] => String = {
-    case Success((numberOfFiles, GroupStatistics(numberOfMeasurements, numberOfFailedMeasurements, statistics))) =>
-      s"""
-         |Num of processed files: $numberOfFiles
-         |Num of processed measurements: $numberOfMeasurements
-         |Num of failed measurements: $numberOfFailedMeasurements
-         |
-         |Sensors with highest avg humidity:
-         |
-         |sensor-id,min,avg,max
-         |${printStatistics(statistics)}
-         |""".stripMargin
-    case Failure(exception) => s"Processing failure: ${exception}"
-  }
+  def parseCsv(csvSource: BufferedSource): Iterator[Measurement] =
+    csvSource
+      .getLines
+      .drop(1) // we do not interested in header line
+      .map(parseCsvLine)
 
   def csvPathToGroupStatistics(dataPath: Path): Try[GroupStatistics] =
     Using(io.Source.fromFile(dataPath.toFile)) { bufferedSource =>
-      measurementsToGroupStatistics(
-        parseCsv(bufferedSource.getLines)
-      )
+      measurementsToGroupStatistics(parseCsv(bufferedSource))
     }
 
-  def parseCsv(lines: Iterator[String]): Iterator[Measurement] = lines
-    .drop(1) // we do not interested in header line
-    .map(_.split(','))
-    .collect {
-      case Array(sensorId, "NaN") => FailedMeasurement(SensorId(sensorId))
-      case Array(sensorId, value) => ValidMeasurement(SensorId(sensorId), value.toInt)
-    }
 
   def measurementsToGroupStatistics(measurements: Iterator[Measurement]): GroupStatistics = measurements
     .map(GroupStatistics.fromMeasurement)

@@ -1,20 +1,23 @@
 package com.epam.sensorstats.plainvanilla
 
-import com.epam.sensorstats.{FailedMeasurement, GroupStatistics, NanStatistics, SensorId, ValidMeasurement, ValidSensorStatistics}
+import com.epam.sensorstats._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+
+import java.io.ByteArrayInputStream
+import scala.io.BufferedSource
 
 class PlainSensorStatsTest extends AnyFunSuite with Matchers {
 
   test("parseCsv") {
-    val csvInput = List(
-      "sensor-id,humidity",
-      "s2,80",
-      "s3,NaN",
-      "s2,78",
-      "s1,98")
+    val csvInput = new BufferedSource(new ByteArrayInputStream(
+      """sensor-id,humidity
+        |s2,80
+        |s3,NaN
+        |s2,78
+        |s1,98""".stripMargin.getBytes))
 
-    PlainSensorStats.parseCsv(csvInput.iterator).toList shouldBe List(
+    PlainSensorStats.parseCsv(csvInput).toList shouldBe List(
       ValidMeasurement(SensorId("s2"), 80),
       FailedMeasurement(SensorId("s3")),
       ValidMeasurement(SensorId("s2"), 78),

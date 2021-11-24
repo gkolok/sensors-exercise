@@ -15,25 +15,8 @@ class Fs2SensorStatsTest extends AnyFunSuite with Matchers {
       |s2,80
       |s3,NaN
       |s2,78
-      |s1,98
-      """.stripMargin)
+      |s1,98""".stripMargin)
     .through(text.utf8.encode)
-
-  test("parseCSV") {
-    val result = csvInput
-      .through(parseCsv)
-      .compile
-      .toList
-      .unsafeRunSync
-
-    result shouldBe List(
-      ValidMeasurement(SensorId("s2"), 80),
-      FailedMeasurement(SensorId("s3")),
-      ValidMeasurement(SensorId("s2"), 78),
-      ValidMeasurement(SensorId("s1"), 98),
-    )
-
-  }
 
   test("csvBytesToGroupStatistics") {
     val result = csvInput

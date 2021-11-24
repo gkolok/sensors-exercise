@@ -2,6 +2,20 @@ package com.epam.sensorstats
 
 object Util {
 
+  val resultToString: ((Int, GroupStatistics)) => String = {
+    case (numberOfFiles, GroupStatistics(numberOfMeasurements, numberOfFailedMeasurements, statistics)) =>
+      s"""
+         |Num of processed files: $numberOfFiles
+         |Num of processed measurements: $numberOfMeasurements
+         |Num of failed measurements: $numberOfFailedMeasurements
+         |
+         |Sensors with highest avg humidity:
+         |
+         |sensor-id,min,avg,max
+         |${printStatistics(statistics)}
+         |""".stripMargin
+  }
+
   private val statisticsTupleToString = (sensorId: SensorId, sensorStatistics: SensorStatistics) =>
     s"$sensorId,${sensorStatistics.print}"
 
@@ -19,4 +33,9 @@ object Util {
     .map(statisticsTupleToString.tupled)
     .mkString("\n")
 
+  def parseCsvLine(line: String): Measurement =
+    line.split(",") match {
+      case Array(sensorId, "NaN") => FailedMeasurement(SensorId(sensorId))
+      case Array(sensorId, value) => ValidMeasurement(SensorId(sensorId), value.toInt)
+    }
 }
