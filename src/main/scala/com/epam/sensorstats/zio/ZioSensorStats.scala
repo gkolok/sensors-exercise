@@ -18,7 +18,7 @@ object ZioSensorStats extends App {
     .drop(1) // we do not interested in header line
     .map(parseCsvLine)
 
-  private def program(args: List[String]) =
+  protected[zio] def program(args: List[String]) =
     ZStream(args)
       .mapM(argumentCheck)
       .flatMap(folder => ZStream.fromJavaStream(Files.walk(Paths.get(folder))))
@@ -35,7 +35,7 @@ object ZioSensorStats extends App {
         case e: String => putStrLn(e)
       }
 
-  private def argumentCheck(args: List[String]) =
+  protected[zio] def argumentCheck(args: List[String]) =
     for {
       _ <- ZIO.when(args.isEmpty)(ZIO.fail("Folder of sensor data should be given as program argument"))
       _ <- ZIO.when(Files.notExists(Paths.get(args.head)))(ZIO.fail(s"Folder: ${args.head} does not exists"))
@@ -43,6 +43,6 @@ object ZioSensorStats extends App {
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] =
     program(args).exitCode
-  
+
 
 }
