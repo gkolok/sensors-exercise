@@ -1,4 +1,4 @@
-# Streaming Excersize
+# Streaming Exercise
 
 Create a command line program that calculates statistics from humidity sensor data contained by CSV files.
 
