@@ -1,6 +1,6 @@
-# Sensor Statistics Task
+# Streaming Excersize
 
-Create a command line program that calculates statistics from humidity sensor data.
+Create a command line program that calculates statistics from humidity sensor data contained by CSV files.
 
 ### Background story
 
